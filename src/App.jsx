@@ -1,27 +1,360 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
-// Initial puzzle (0 represents empty cells)
-const initialPuzzle = [
-  [5, 3, 0, 0, 7, 0, 0, 0, 0],
-  [6, 0, 0, 1, 9, 5, 0, 0, 0],
-  [0, 9, 8, 0, 0, 0, 0, 6, 0],
-  [8, 0, 0, 0, 6, 0, 0, 0, 3],
-  [4, 0, 0, 8, 0, 3, 0, 0, 1],
-  [7, 0, 0, 0, 2, 0, 0, 0, 6],
-  [0, 6, 0, 0, 0, 0, 2, 8, 0],
-  [0, 0, 0, 4, 1, 9, 0, 0, 5],
-  [0, 0, 0, 0, 8, 0, 0, 7, 9],
+// Base solved puzzle to start from
+const baseSolvedPuzzle = [
+  [5, 3, 4, 6, 7, 8, 9, 1, 2],
+  [6, 7, 2, 1, 9, 5, 3, 4, 8],
+  [1, 9, 8, 3, 4, 2, 5, 6, 7],
+  [8, 5, 9, 7, 6, 1, 4, 2, 3],
+  [4, 2, 6, 8, 5, 3, 7, 9, 1],
+  [7, 1, 3, 9, 2, 4, 8, 5, 6],
+  [9, 6, 1, 5, 3, 7, 2, 8, 4],
+  [2, 8, 7, 4, 1, 9, 6, 3, 5],
+  [3, 4, 5, 2, 8, 6, 1, 7, 9],
 ]
 
-// Create empty notes grid (each cell has a Set of candidate numbers)
+// ============= PUZZLE GENERATOR =============
+
+// Deep copy a board
+const copyBoard = (board) => board.map(row => [...row])
+
+// Swap two rows within the same band
+const swapRows = (board, row1, row2) => {
+  const newBoard = copyBoard(board)
+  ;[newBoard[row1], newBoard[row2]] = [newBoard[row2], newBoard[row1]]
+  return newBoard
+}
+
+// Swap two columns within the same stack
+const swapColumns = (board, col1, col2) => {
+  const newBoard = copyBoard(board)
+  for (let row = 0; row < 9; row++) {
+    ;[newBoard[row][col1], newBoard[row][col2]] = [newBoard[row][col2], newBoard[row][col1]]
+  }
+  return newBoard
+}
+
+// Swap two bands (groups of 3 rows)
+const swapBands = (board, band1, band2) => {
+  const newBoard = copyBoard(board)
+  for (let i = 0; i < 3; i++) {
+    ;[newBoard[band1 * 3 + i], newBoard[band2 * 3 + i]] = [newBoard[band2 * 3 + i], newBoard[band1 * 3 + i]]
+  }
+  return newBoard
+}
+
+// Swap two stacks (groups of 3 columns)
+const swapStacks = (board, stack1, stack2) => {
+  const newBoard = copyBoard(board)
+  for (let row = 0; row < 9; row++) {
+    for (let i = 0; i < 3; i++) {
+      ;[newBoard[row][stack1 * 3 + i], newBoard[row][stack2 * 3 + i]] = [newBoard[row][stack2 * 3 + i], newBoard[row][stack1 * 3 + i]]
+    }
+  }
+  return newBoard
+}
+
+// Randomize a solved puzzle
+const randomizePuzzle = (board, iterations = 50) => {
+  let newBoard = copyBoard(board)
+
+  for (let i = 0; i < iterations; i++) {
+    const transformation = Math.floor(Math.random() * 4)
+    const band = Math.floor(Math.random() * 3)
+    const options = [0, 1, 2].sort(() => Math.random() - 0.5)
+    const [piece1, piece2] = [options[0], options[1]]
+
+    switch (transformation) {
+      case 0: // Swap rows within band
+        newBoard = swapRows(newBoard, band * 3 + piece1, band * 3 + piece2)
+        break
+      case 1: // Swap columns within stack
+        newBoard = swapColumns(newBoard, band * 3 + piece1, band * 3 + piece2)
+        break
+      case 2: // Swap bands
+        newBoard = swapBands(newBoard, piece1, piece2)
+        break
+      case 3: // Swap stacks
+        newBoard = swapStacks(newBoard, piece1, piece2)
+        break
+    }
+  }
+
+  return newBoard
+}
+
+// Get possible values for a cell
+const getPossibles = (board, row, col) => {
+  if (board[row][col] !== 0) return new Set()
+
+  const possible = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+  // Check row
+  for (let c = 0; c < 9; c++) possible.delete(board[row][c])
+
+  // Check column
+  for (let r = 0; r < 9; r++) possible.delete(board[r][col])
+
+  // Check box
+  const boxRow = Math.floor(row / 3) * 3
+  const boxCol = Math.floor(col / 3) * 3
+  for (let r = boxRow; r < boxRow + 3; r++) {
+    for (let c = boxCol; c < boxCol + 3; c++) {
+      possible.delete(board[r][c])
+    }
+  }
+
+  return possible
+}
+
+// Simple solver using backtracking
+const solve = (board) => {
+  const newBoard = copyBoard(board)
+
+  const findEmpty = () => {
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (newBoard[r][c] === 0) return [r, c]
+      }
+    }
+    return null
+  }
+
+  const isValid = (row, col, num) => {
+    // Check row
+    for (let c = 0; c < 9; c++) {
+      if (newBoard[row][c] === num) return false
+    }
+    // Check column
+    for (let r = 0; r < 9; r++) {
+      if (newBoard[r][col] === num) return false
+    }
+    // Check box
+    const boxRow = Math.floor(row / 3) * 3
+    const boxCol = Math.floor(col / 3) * 3
+    for (let r = boxRow; r < boxRow + 3; r++) {
+      for (let c = boxCol; c < boxCol + 3; c++) {
+        if (newBoard[r][c] === num) return false
+      }
+    }
+    return true
+  }
+
+  const solveRecursive = () => {
+    const empty = findEmpty()
+    if (!empty) return true
+
+    const [row, col] = empty
+    for (let num = 1; num <= 9; num++) {
+      if (isValid(row, col, num)) {
+        newBoard[row][col] = num
+        if (solveRecursive()) return true
+        newBoard[row][col] = 0
+      }
+    }
+    return false
+  }
+
+  return solveRecursive() ? newBoard : null
+}
+
+// Check if puzzle has unique solution (optimized with early exit)
+const hasUniqueSolution = (board) => {
+  const newBoard = copyBoard(board)
+  let solutions = 0
+
+  // Find empty cell with minimum remaining values (MRV heuristic)
+  const findBestEmpty = () => {
+    let best = null
+    let minOptions = 10
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (newBoard[r][c] === 0) {
+          const options = getPossibles(newBoard, r, c).size
+          if (options < minOptions) {
+            minOptions = options
+            best = [r, c]
+            if (options === 1) return best // Can't do better than 1
+          }
+        }
+      }
+    }
+    return best
+  }
+
+  const isValid = (row, col, num) => {
+    for (let c = 0; c < 9; c++) if (newBoard[row][c] === num) return false
+    for (let r = 0; r < 9; r++) if (newBoard[r][col] === num) return false
+    const boxRow = Math.floor(row / 3) * 3
+    const boxCol = Math.floor(col / 3) * 3
+    for (let r = boxRow; r < boxRow + 3; r++) {
+      for (let c = boxCol; c < boxCol + 3; c++) {
+        if (newBoard[r][c] === num) return false
+      }
+    }
+    return true
+  }
+
+  const countSolutions = () => {
+    if (solutions > 1) return // Early exit
+
+    const empty = findBestEmpty()
+    if (!empty) {
+      solutions++
+      return
+    }
+
+    const [row, col] = empty
+    for (let num = 1; num <= 9; num++) {
+      if (solutions > 1) return // Early exit
+      if (isValid(row, col, num)) {
+        newBoard[row][col] = num
+        countSolutions()
+        newBoard[row][col] = 0
+      }
+    }
+  }
+
+  countSolutions()
+  return solutions === 1
+}
+
+// Get density (number of filled cells in row, col, and box)
+const getDensity = (board, row, col) => {
+  let density = 0
+
+  for (let c = 0; c < 9; c++) if (board[row][c] !== 0) density++
+  for (let r = 0; r < 9; r++) if (board[r][col] !== 0) density++
+
+  const boxRow = Math.floor(row / 3) * 3
+  const boxCol = Math.floor(col / 3) * 3
+  for (let r = boxRow; r < boxRow + 3; r++) {
+    for (let c = boxCol; c < boxCol + 3; c++) {
+      if (board[r][c] !== 0) density++
+    }
+  }
+
+  return density
+}
+
+// Reduce puzzle via logical method (remove cells with only one possible value)
+const reduceLogical = (board, targetCells) => {
+  const newBoard = copyBoard(board)
+  const cells = []
+
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      if (newBoard[r][c] !== 0) cells.push({ row: r, col: c })
+    }
+  }
+
+  // Shuffle cells
+  cells.sort(() => Math.random() - 0.5)
+
+  let removed = 0
+  for (const cell of cells) {
+    const possibles = getPossibles(newBoard, cell.row, cell.col)
+    if (possibles.size === 0) { // Cell has a value, check if removable
+      const original = newBoard[cell.row][cell.col]
+      newBoard[cell.row][cell.col] = 0
+      const newPossibles = getPossibles(newBoard, cell.row, cell.col)
+      if (newPossibles.size === 1) {
+        removed++
+      } else {
+        newBoard[cell.row][cell.col] = original
+      }
+    }
+    if (81 - removed <= targetCells) break
+  }
+
+  return newBoard
+}
+
+// Reduce puzzle via random method with uniqueness check (for hard puzzles)
+// Uses hybrid approach: logical first, then limited uniqueness checks
+const reduceRandom = (board, targetCells, maxChecks = 15) => {
+  // First do logical reduction to get close
+  let newBoard = reduceLogical(board, targetCells + 8)
+
+  // Count current filled cells
+  let filledCells = 0
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      if (newBoard[r][c] !== 0) filledCells++
+    }
+  }
+
+  // If we're already at or below target, return
+  if (filledCells <= targetCells) return newBoard
+
+  // Get remaining filled cells sorted by density
+  const cells = []
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      if (newBoard[r][c] !== 0) {
+        cells.push({ row: r, col: c, density: getDensity(newBoard, r, c) })
+      }
+    }
+  }
+  cells.sort((a, b) => b.density - a.density)
+
+  // Try to remove more cells with uniqueness checking (limited attempts)
+  let checks = 0
+  for (const cell of cells) {
+    if (filledCells <= targetCells || checks >= maxChecks) break
+
+    const original = newBoard[cell.row][cell.col]
+    newBoard[cell.row][cell.col] = 0
+    checks++
+
+    if (!hasUniqueSolution(newBoard)) {
+      newBoard[cell.row][cell.col] = original
+    } else {
+      filledCells--
+    }
+  }
+
+  return newBoard
+}
+
+// Generate puzzle based on difficulty
+const generatePuzzle = (difficulty = 'medium') => {
+  // Start with base and randomize
+  let puzzle = randomizePuzzle(baseSolvedPuzzle, 100)
+
+  // Define target cells based on difficulty
+  const targets = {
+    easy: { cells: 40, method: 'logical' },
+    medium: { cells: 32, method: 'logical' },
+    hard: { cells: 26, method: 'hybrid' },
+  }
+
+  const { cells: targetCells, method } = targets[difficulty] || targets.medium
+
+  if (method === 'logical') {
+    puzzle = reduceLogical(puzzle, targetCells)
+  } else {
+    puzzle = reduceRandom(puzzle, targetCells, 12)
+  }
+
+  return puzzle
+}
+
+// ============= MAIN APP =============
+
+// Create empty notes grid
 const createEmptyNotes = () =>
   Array(9).fill(null).map(() =>
     Array(9).fill(null).map(() => new Set())
   )
 
+// Default starting puzzle
+const defaultPuzzle = generatePuzzle('medium')
+
 function App() {
-  const [board, setBoard] = useState(initialPuzzle)
+  const [puzzle, setPuzzle] = useState(defaultPuzzle)
+  const [board, setBoard] = useState(defaultPuzzle)
   const [notes, setNotes] = useState(createEmptyNotes)
   const [autoNotes, setAutoNotes] = useState(createEmptyNotes)
   const [selectedCell, setSelectedCell] = useState(null)
@@ -29,17 +362,30 @@ function App() {
   const [history, setHistory] = useState([])
   const [highlightedNumber, setHighlightedNumber] = useState(null)
   const [highlightedCell, setHighlightedCell] = useState(null)
+  const [showNewGameMenu, setShowNewGameMenu] = useState(false)
+
+  // Generate new game
+  const startNewGame = (difficulty) => {
+    const newPuzzle = generatePuzzle(difficulty)
+    setPuzzle(newPuzzle)
+    setBoard(copyBoard(newPuzzle))
+    setNotes(createEmptyNotes())
+    setAutoNotes(createEmptyNotes())
+    setSelectedCell(null)
+    setHistory([])
+    setHighlightedNumber(null)
+    setHighlightedCell(null)
+    setShowNewGameMenu(false)
+  }
 
   // Handle keyboard input
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Number keys 1-9
       if (e.key >= '1' && e.key <= '9') {
         const num = parseInt(e.key)
         if (selectedCell) {
           handleNumberInput(num)
         }
-        // Only highlight if not in notes mode
         if (!isNotesMode) {
           if (highlightedNumber === num) {
             setHighlightedNumber(null)
@@ -50,13 +396,11 @@ function App() {
           }
         }
       }
-      // Backspace, Delete, or 0 to clear
       if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') {
         if (selectedCell) {
           handleNumberInput(0)
         }
       }
-      // Arrow keys for navigation
       if (selectedCell && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault()
         let { row, col } = selectedCell
@@ -64,36 +408,28 @@ function App() {
         if (e.key === 'ArrowDown' && row < 8) row++
         if (e.key === 'ArrowLeft' && col > 0) col--
         if (e.key === 'ArrowRight' && col < 8) col++
-        // Only select if it's an editable cell
-        if (initialPuzzle[row][col] === 0) {
+        if (puzzle[row][col] === 0) {
           setSelectedCell({ row, col })
           setHighlightedNumber(null)
           setHighlightedCell(null)
         }
       }
+      // Escape to close menu
+      if (e.key === 'Escape') {
+        setShowNewGameMenu(false)
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedCell, highlightedNumber, isNotesMode])
+  }, [selectedCell, highlightedNumber, isNotesMode, puzzle])
 
-  // Get valid candidates for a cell based on Sudoku rules
+  // Get valid candidates for auto-notes
   const getValidCandidates = (currentBoard, row, col) => {
     if (currentBoard[row][col] !== 0) return new Set()
-
     const candidates = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9])
-
-    // Check row
-    for (let c = 0; c < 9; c++) {
-      candidates.delete(currentBoard[row][c])
-    }
-
-    // Check column
-    for (let r = 0; r < 9; r++) {
-      candidates.delete(currentBoard[r][col])
-    }
-
-    // Check 3x3 block
+    for (let c = 0; c < 9; c++) candidates.delete(currentBoard[row][c])
+    for (let r = 0; r < 9; r++) candidates.delete(currentBoard[r][col])
     const blockRowStart = Math.floor(row / 3) * 3
     const blockColStart = Math.floor(col / 3) * 3
     for (let r = blockRowStart; r < blockRowStart + 3; r++) {
@@ -101,17 +437,14 @@ function App() {
         candidates.delete(currentBoard[r][c])
       }
     }
-
     return candidates
   }
 
-  // Fill all empty cells with auto-calculated candidates
   const fillAutoNotes = () => {
     saveToHistory()
     const newAutoNotes = Array(9).fill(null).map(() =>
       Array(9).fill(null).map(() => new Set())
     )
-
     for (let row = 0; row < 9; row++) {
       for (let col = 0; col < 9; col++) {
         if (board[row][col] === 0) {
@@ -119,28 +452,22 @@ function App() {
         }
       }
     }
-
     setAutoNotes(newAutoNotes)
   }
 
-  // Check if cell is in same row, column, or 3x3 block as highlighted cell
   const isInHighlightedRegion = (row, col) => {
     if (!highlightedCell) return false
-
     const sameRow = row === highlightedCell.row
     const sameCol = col === highlightedCell.col
     const sameBlock =
       Math.floor(row / 3) === Math.floor(highlightedCell.row / 3) &&
       Math.floor(col / 3) === Math.floor(highlightedCell.col / 3)
-
     return sameRow || sameCol || sameBlock
   }
 
-  const handleCellClick = (row, col, e) => {
+  const handleCellClick = (row, col) => {
     const cellValue = board[row][col]
-
     if (cellValue !== 0) {
-      // Clicking on a filled cell - toggle highlight for that number
       if (highlightedNumber === cellValue && highlightedCell?.row === row && highlightedCell?.col === col) {
         setHighlightedNumber(null)
         setHighlightedCell(null)
@@ -150,11 +477,9 @@ function App() {
       }
       return
     }
-
-    // Clicking on empty cell clears highlight and selects for editing
     setHighlightedNumber(null)
     setHighlightedCell(null)
-    if (initialPuzzle[row][col] === 0) {
+    if (puzzle[row][col] === 0) {
       setSelectedCell({ row, col })
     }
   }
@@ -169,7 +494,6 @@ function App() {
 
   const handleUndo = () => {
     if (history.length === 0) return
-
     const previousState = history[history.length - 1]
     setBoard(previousState.board)
     setNotes(previousState.notes)
@@ -178,7 +502,6 @@ function App() {
   }
 
   const handleNumberPadClick = (num) => {
-    // Toggle highlight for this number (only if not in notes mode)
     if (num !== 0 && !isNotesMode) {
       if (highlightedNumber === num) {
         setHighlightedNumber(null)
@@ -188,14 +511,12 @@ function App() {
         setHighlightedCell(null)
       }
     }
-    // Also input the number if a cell is selected
     handleNumberInput(num)
   }
 
   const handleNumberInput = (num) => {
     if (!selectedCell) return
     const { row, col } = selectedCell
-
     saveToHistory()
 
     if (isNotesMode && num !== 0) {
@@ -203,14 +524,12 @@ function App() {
       const hasAutoNote = autoNotes[row][col].has(num)
 
       if (hasAutoNote && !hasManualNote) {
-        // If it's only in auto notes, just remove from auto notes
         setAutoNotes(prev => {
           const newAutoNotes = prev.map(r => r.map(c => new Set(c)))
           newAutoNotes[row][col].delete(num)
           return newAutoNotes
         })
       } else {
-        // Toggle manual notes
         setNotes(prev => {
           const newNotes = prev.map(r => r.map(c => new Set(c)))
           if (newNotes[row][col].has(num)) {
@@ -220,7 +539,6 @@ function App() {
           }
           return newNotes
         })
-        // Also remove from auto notes if adding manually
         if (!hasManualNote) {
           setAutoNotes(prev => {
             const newAutoNotes = prev.map(r => r.map(c => new Set(c)))
@@ -230,15 +548,12 @@ function App() {
         }
       }
     } else {
-      // Normal mode: set the cell value
       const newBoard = board.map((r, rowIndex) =>
         r.map((cell, colIndex) =>
           rowIndex === row && colIndex === col ? num : cell
         )
       )
       setBoard(newBoard)
-
-      // Clear notes for this cell when placing a number
       if (num !== 0) {
         setNotes(prev => {
           const newNotes = prev.map(r => r.map(c => new Set(c)))
@@ -254,7 +569,7 @@ function App() {
     }
   }
 
-  const isInitialCell = (row, col) => initialPuzzle[row][col] !== 0
+  const isInitialCell = (row, col) => puzzle[row][col] !== 0
 
   const renderCellContent = (row, col, cellValue) => {
     if (cellValue !== 0) {
@@ -277,7 +592,6 @@ function App() {
             const isAutoNote = cellAutoNotes.has(num) && !isManualNote
             const hasNote = isManualNote || isAutoNote
             const isHighlighted = hasNote && highlightedNumber === num
-
             return (
               <span
                 key={num}
@@ -290,11 +604,9 @@ function App() {
         </div>
       )
     }
-
     return ''
   }
 
-  // Check if cell has any notes (manual or auto)
   const cellHasNotes = (row, col) => {
     return notes[row][col].size > 0 || autoNotes[row][col].size > 0
   }
@@ -318,7 +630,7 @@ function App() {
                   ${cell !== 0 && highlightedNumber === cell ? 'cell-highlighted' : ''}
                   ${isInHighlightedRegion(rowIndex, colIndex) ? 'region-highlighted' : ''}
                 `}
-                onClick={(e) => handleCellClick(rowIndex, colIndex, e)}
+                onClick={() => handleCellClick(rowIndex, colIndex)}
               >
                 {renderCellContent(rowIndex, colIndex, cell)}
               </div>
@@ -357,7 +669,22 @@ function App() {
           <i className="fa-solid fa-pencil"></i>
           <span>{isNotesMode ? 'ON' : 'OFF'}</span>
         </button>
+        <button
+          className="icon-btn"
+          onClick={() => setShowNewGameMenu(!showNewGameMenu)}
+          title="New Game"
+        >
+          <i className="fa-solid fa-plus"></i>
+        </button>
       </div>
+
+      {showNewGameMenu && (
+        <div className="new-game-menu">
+          <button onClick={() => startNewGame('easy')}>Easy</button>
+          <button onClick={() => startNewGame('medium')}>Medium</button>
+          <button onClick={() => startNewGame('hard')}>Hard</button>
+        </div>
+      )}
 
       <div className="number-pad">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
