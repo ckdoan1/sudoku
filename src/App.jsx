@@ -763,6 +763,10 @@ function App() {
   const handleNumberInput = (num) => {
     if (!selectedCell) return
     const { row, col } = selectedCell
+    
+    // Don't allow editing original puzzle cells
+    if (puzzle[row][col] !== 0) return
+    
     saveToHistory()
 
     if (isNotesMode && num !== 0) {
