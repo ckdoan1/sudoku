@@ -140,6 +140,24 @@ html, body {
   text-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
 }
 
+/* Conflict flash animation */
+.cell.conflict {
+  animation: conflictFlash 0.6s ease-out;
+}
+
+@keyframes conflictFlash {
+  0% {
+    background: rgba(239, 68, 68, 0.7);
+    box-shadow: inset 0 0 10px rgba(239, 68, 68, 0.8);
+  }
+  50% {
+    background: rgba(239, 68, 68, 0.5);
+  }
+  100% {
+    background: rgba(239, 68, 68, 0);
+  }
+}
+
 /* Row/Column/Block highlight */
 .cell.region-highlighted {
   background: rgba(59, 130, 246, 0.15);

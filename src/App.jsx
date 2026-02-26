@@ -363,6 +363,48 @@ function App() {
   const [highlightedNumber, setHighlightedNumber] = useState(null)
   const [highlightedCell, setHighlightedCell] = useState(null)
   const [showNewGameMenu, setShowNewGameMenu] = useState(false)
+  const [conflictCells, setConflictCells] = useState([])
+
+  // Check if placing a number creates a conflict
+  const findConflicts = (currentBoard, row, col, num) => {
+    const conflicts = []
+    
+    // Check row
+    for (let c = 0; c < 9; c++) {
+      if (c !== col && currentBoard[row][c] === num) {
+        conflicts.push({ row, col: c })
+      }
+    }
+    
+    // Check column
+    for (let r = 0; r < 9; r++) {
+      if (r !== row && currentBoard[r][col] === num) {
+        conflicts.push({ row: r, col })
+      }
+    }
+    
+    // Check 3x3 block
+    const blockRowStart = Math.floor(row / 3) * 3
+    const blockColStart = Math.floor(col / 3) * 3
+    for (let r = blockRowStart; r < blockRowStart + 3; r++) {
+      for (let c = blockColStart; c < blockColStart + 3; c++) {
+        if ((r !== row || c !== col) && currentBoard[r][c] === num) {
+          conflicts.push({ row: r, col: c })
+        }
+      }
+    }
+    
+    return conflicts
+  }
+
+  // Flash conflict cells
+  const flashConflicts = (cells, includeSelected = true, selectedRow = null, selectedCol = null) => {
+    const allConflicts = includeSelected && selectedRow !== null 
+      ? [...cells, { row: selectedRow, col: selectedCol }]
+      : cells
+    setConflictCells(allConflicts)
+    setTimeout(() => setConflictCells([]), 600)
+  }
 
   // Generate new game
   const startNewGame = (difficulty) => {
@@ -398,8 +440,27 @@ function App() {
       }
       if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') {
         if (selectedCell) {
-          handleNumberInput(0)
+          if (isNotesMode) {
+            // Clear all notes for this cell
+            const { row, col } = selectedCell
+            setNotes(prev => {
+              const newNotes = prev.map(r => r.map(c => new Set(c)))
+              newNotes[row][col].clear()
+              return newNotes
+            })
+            setAutoNotes(prev => {
+              const newAutoNotes = prev.map(r => r.map(c => new Set(c)))
+              newAutoNotes[row][col].clear()
+              return newAutoNotes
+            })
+          } else {
+            handleNumberInput(0)
+          }
         }
+      }
+      // Toggle notes mode with 'q'
+      if (e.key === 'q' || e.key === 'Q') {
+        setIsNotesMode(prev => !prev)
       }
       if (selectedCell && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault()
@@ -522,6 +583,14 @@ function App() {
     if (isNotesMode && num !== 0) {
       const hasManualNote = notes[row][col].has(num)
       const hasAutoNote = autoNotes[row][col].has(num)
+      
+      // Check for conflicts when adding a note
+      if (!hasManualNote && !hasAutoNote) {
+        const conflicts = findConflicts(board, row, col, num)
+        if (conflicts.length > 0) {
+          flashConflicts(conflicts, true, row, col)
+        }
+      }
 
       if (hasAutoNote && !hasManualNote) {
         setAutoNotes(prev => {
@@ -548,6 +617,14 @@ function App() {
         }
       }
     } else {
+      // Check for conflicts when placing a number
+      if (num !== 0) {
+        const conflicts = findConflicts(board, row, col, num)
+        if (conflicts.length > 0) {
+          flashConflicts(conflicts, true, row, col)
+        }
+      }
+      
       const newBoard = board.map((r, rowIndex) =>
         r.map((cell, colIndex) =>
           rowIndex === row && colIndex === col ? num : cell
@@ -555,16 +632,36 @@ function App() {
       )
       setBoard(newBoard)
       if (num !== 0) {
-        setNotes(prev => {
-          const newNotes = prev.map(r => r.map(c => new Set(c)))
+        // Clear notes for this cell and remove from related cells
+        const removeNoteFromRelatedCells = (notesGrid) => {
+          const newNotes = notesGrid.map(r => r.map(c => new Set(c)))
+          // Clear the cell itself
           newNotes[row][col].clear()
+          
+          // Remove from same row
+          for (let c = 0; c < 9; c++) {
+            newNotes[row][c].delete(num)
+          }
+          
+          // Remove from same column
+          for (let r = 0; r < 9; r++) {
+            newNotes[r][col].delete(num)
+          }
+          
+          // Remove from same 3x3 block
+          const blockRowStart = Math.floor(row / 3) * 3
+          const blockColStart = Math.floor(col / 3) * 3
+          for (let r = blockRowStart; r < blockRowStart + 3; r++) {
+            for (let c = blockColStart; c < blockColStart + 3; c++) {
+              newNotes[r][c].delete(num)
+            }
+          }
+          
           return newNotes
-        })
-        setAutoNotes(prev => {
-          const newAutoNotes = prev.map(r => r.map(c => new Set(c)))
-          newAutoNotes[row][col].clear()
-          return newAutoNotes
-        })
+        }
+        
+        setNotes(prev => removeNoteFromRelatedCells(prev))
+        setAutoNotes(prev => removeNoteFromRelatedCells(prev))
       }
     }
   }
@@ -629,6 +726,7 @@ function App() {
                   ${cellHasNotes(rowIndex, colIndex) && cell === 0 ? 'has-notes' : ''}
                   ${cell !== 0 && highlightedNumber === cell ? 'cell-highlighted' : ''}
                   ${isInHighlightedRegion(rowIndex, colIndex) ? 'region-highlighted' : ''}
+                  ${conflictCells.some(c => c.row === rowIndex && c.col === colIndex) ? 'conflict' : ''}
                 `}
                 onClick={() => handleCellClick(rowIndex, colIndex)}
               >
