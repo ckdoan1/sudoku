@@ -324,18 +324,20 @@ const generatePuzzle = (difficulty = 'medium') => {
   let puzzle = randomizePuzzle(baseSolvedPuzzle, 100)
 
   // Define target cells based on difficulty
+  // Easy: 38-42 clues, Medium: 30-34 clues, Hard: 22-26 clues, Expert: 17-21 clues
   const targets = {
-    easy: { cells: 40, method: 'logical' },
-    medium: { cells: 32, method: 'logical' },
-    hard: { cells: 26, method: 'hybrid' },
+    easy: { cells: 40, method: 'logical', checks: 0 },
+    medium: { cells: 32, method: 'logical', checks: 0 },
+    hard: { cells: 22, method: 'hybrid', checks: 25 },
+    expert: { cells: 17, method: 'hybrid', checks: 40 },
   }
 
-  const { cells: targetCells, method } = targets[difficulty] || targets.medium
+  const { cells: targetCells, method, checks } = targets[difficulty] || targets.medium
 
   if (method === 'logical') {
     puzzle = reduceLogical(puzzle, targetCells)
   } else {
-    puzzle = reduceRandom(puzzle, targetCells, 12)
+    puzzle = reduceRandom(puzzle, targetCells, checks)
   }
 
   return puzzle
@@ -364,6 +366,11 @@ function App() {
   const [highlightedCell, setHighlightedCell] = useState(null)
   const [showNewGameMenu, setShowNewGameMenu] = useState(false)
   const [conflictCells, setConflictCells] = useState([])
+  const [gameMode, setGameMode] = useState('medium')
+  const [isCustomEntryMode, setIsCustomEntryMode] = useState(false)
+  const [customBoard, setCustomBoard] = useState(() => 
+    Array(9).fill(null).map(() => Array(9).fill(0))
+  )
 
   // Check if placing a number creates a conflict
   const findConflicts = (currentBoard, row, col, num) => {
@@ -406,6 +413,68 @@ function App() {
     setTimeout(() => setConflictCells([]), 600)
   }
 
+  // Start custom puzzle entry mode
+  const startCustomEntry = () => {
+    setIsCustomEntryMode(true)
+    setCustomBoard(Array(9).fill(null).map(() => Array(9).fill(0)))
+    setSelectedCell(null)
+    setShowNewGameMenu(false)
+  }
+
+  // Confirm custom puzzle and start playing
+  const confirmCustomPuzzle = () => {
+    // Count filled cells
+    let filledCount = 0
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (customBoard[r][c] !== 0) filledCount++
+      }
+    }
+    
+    if (filledCount < 17) {
+      alert('Please enter at least 17 numbers for a valid puzzle.')
+      return
+    }
+    
+    const newPuzzle = customBoard.map(row => [...row])
+    setPuzzle(newPuzzle)
+    setBoard(copyBoard(newPuzzle))
+    setNotes(createEmptyNotes())
+    setAutoNotes(createEmptyNotes())
+    setSelectedCell(null)
+    setHistory([])
+    setHighlightedNumber(null)
+    setHighlightedCell(null)
+    setIsCustomEntryMode(false)
+    setGameMode('custom')
+  }
+
+  // Cancel custom entry
+  const cancelCustomEntry = () => {
+    setIsCustomEntryMode(false)
+    setCustomBoard(Array(9).fill(null).map(() => Array(9).fill(0)))
+  }
+
+  // Handle number input in custom entry mode
+  const handleCustomNumberInput = (num) => {
+    if (!selectedCell) return
+    const { row, col } = selectedCell
+    
+    // Check for conflicts if placing a number
+    if (num !== 0) {
+      const conflicts = findConflicts(customBoard, row, col, num)
+      if (conflicts.length > 0) {
+        flashConflicts(conflicts, true, row, col)
+      }
+    }
+    
+    setCustomBoard(prev => {
+      const newBoard = prev.map(r => [...r])
+      newBoard[row][col] = num
+      return newBoard
+    })
+  }
+
   // Generate new game
   const startNewGame = (difficulty) => {
     const newPuzzle = generatePuzzle(difficulty)
@@ -418,11 +487,55 @@ function App() {
     setHighlightedNumber(null)
     setHighlightedCell(null)
     setShowNewGameMenu(false)
+    setGameMode(difficulty)
+  }
+
+  // Reset board to initial puzzle state
+  const resetBoard = () => {
+    setBoard(copyBoard(puzzle))
+    setNotes(createEmptyNotes())
+    setAutoNotes(createEmptyNotes())
+    setSelectedCell(null)
+    setHistory([])
+    setHighlightedNumber(null)
+    setHighlightedCell(null)
   }
 
   // Handle keyboard input
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Custom entry mode keyboard handling
+      if (isCustomEntryMode) {
+        if (e.key >= '1' && e.key <= '9') {
+          const num = parseInt(e.key)
+          if (selectedCell) {
+            handleCustomNumberInput(num)
+          }
+        }
+        if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') {
+          if (selectedCell) {
+            handleCustomNumberInput(0)
+          }
+        }
+        if (e.key === 'Enter') {
+          confirmCustomPuzzle()
+        }
+        if (e.key === 'Escape') {
+          cancelCustomEntry()
+        }
+        // Arrow key navigation in custom mode
+        if (selectedCell && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          e.preventDefault()
+          let { row, col } = selectedCell
+          if (e.key === 'ArrowUp' && row > 0) row--
+          if (e.key === 'ArrowDown' && row < 8) row++
+          if (e.key === 'ArrowLeft' && col > 0) col--
+          if (e.key === 'ArrowRight' && col < 8) col++
+          setSelectedCell({ row, col })
+        }
+        return
+      }
+      
       if (e.key >= '1' && e.key <= '9') {
         const num = parseInt(e.key)
         if (selectedCell) {
@@ -461,6 +574,10 @@ function App() {
       // Toggle notes mode with 'q'
       if (e.key === 'q' || e.key === 'Q') {
         setIsNotesMode(prev => !prev)
+      }
+      // Reset board with 'r'
+      if (e.key === 'r' || e.key === 'R') {
+        resetBoard()
       }
       if (selectedCell && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault()
@@ -527,6 +644,12 @@ function App() {
   }
 
   const handleCellClick = (row, col) => {
+    // Custom entry mode - all cells are editable
+    if (isCustomEntryMode) {
+      setSelectedCell({ row, col })
+      return
+    }
+    
     const cellValue = board[row][col]
     if (cellValue !== 0) {
       if (highlightedNumber === cellValue && highlightedCell?.row === row && highlightedCell?.col === col) {
@@ -563,6 +686,12 @@ function App() {
   }
 
   const handleNumberPadClick = (num) => {
+    // Custom entry mode
+    if (isCustomEntryMode) {
+      handleCustomNumberInput(num)
+      return
+    }
+    
     if (num !== 0 && !isNotesMode) {
       if (highlightedNumber === num) {
         setHighlightedNumber(null)
@@ -710,77 +839,108 @@ function App() {
 
   return (
     <div className="container">
-      <h1 className="title">Sudoku</h1>
+      <h1 className="title">{isCustomEntryMode ? 'Enter Your Puzzle' : 'Sudoku'}</h1>
+      {!isCustomEntryMode && (
+        <div className="sub-header">
+          <div className="new-game-wrapper">
+            <button
+              className="header-btn"
+              onClick={() => setShowNewGameMenu(!showNewGameMenu)}
+              title="New Game"
+            >
+              <i className="fa-solid fa-plus"></i> NEW
+            </button>
+            {showNewGameMenu && (
+              <div className="new-game-dropdown">
+                <button onClick={() => startNewGame('easy')}>Easy</button>
+                <button onClick={() => startNewGame('medium')}>Medium</button>
+                <button onClick={() => startNewGame('hard')}>Hard</button>
+                <button onClick={() => startNewGame('expert')}>Expert</button>
+                <button onClick={startCustomEntry}>Custom</button>
+              </div>
+            )}
+          </div>
+          <div className={`game-mode ${gameMode}`}>
+            {gameMode.charAt(0).toUpperCase() + gameMode.slice(1)}
+          </div>
+          <button
+            className="header-btn"
+            onClick={resetBoard}
+            title="Reset Board"
+          >
+            <i className="fa-solid fa-rotate-right"></i> RESET
+          </button>
+        </div>
+      )}
 
       <div className="board">
-        {board.map((row, rowIndex) => (
+        {(isCustomEntryMode ? customBoard : board).map((row, rowIndex) => (
           <div key={rowIndex} className="row">
             {row.map((cell, colIndex) => (
               <div
                 key={colIndex}
                 className={`cell
-                  ${isInitialCell(rowIndex, colIndex) ? 'initial' : 'editable'}
+                  ${isCustomEntryMode ? 'custom-entry' : (isInitialCell(rowIndex, colIndex) ? 'initial' : 'editable')}
                   ${selectedCell?.row === rowIndex && selectedCell?.col === colIndex ? 'selected' : ''}
                   ${colIndex % 3 === 2 && colIndex !== 8 ? 'border-right' : ''}
                   ${rowIndex % 3 === 2 && rowIndex !== 8 ? 'border-bottom' : ''}
-                  ${cellHasNotes(rowIndex, colIndex) && cell === 0 ? 'has-notes' : ''}
-                  ${cell !== 0 && highlightedNumber === cell ? 'cell-highlighted' : ''}
-                  ${isInHighlightedRegion(rowIndex, colIndex) ? 'region-highlighted' : ''}
+                  ${!isCustomEntryMode && cellHasNotes(rowIndex, colIndex) && cell === 0 ? 'has-notes' : ''}
+                  ${!isCustomEntryMode && cell !== 0 && highlightedNumber === cell ? 'cell-highlighted' : ''}
+                  ${!isCustomEntryMode && isInHighlightedRegion(rowIndex, colIndex) ? 'region-highlighted' : ''}
                   ${conflictCells.some(c => c.row === rowIndex && c.col === colIndex) ? 'conflict' : ''}
                 `}
                 onClick={() => handleCellClick(rowIndex, colIndex)}
               >
-                {renderCellContent(rowIndex, colIndex, cell)}
+                {isCustomEntryMode ? (cell !== 0 ? cell : '') : renderCellContent(rowIndex, colIndex, cell)}
               </div>
             ))}
           </div>
         ))}
       </div>
 
-      <div className="controls">
-        <button
-          className="icon-btn"
-          onClick={handleUndo}
-          disabled={history.length === 0}
-          title="Undo"
-        >
-          <i className="fa-solid fa-rotate-left"></i>
-        </button>
-        <button
-          className="icon-btn"
-          onClick={() => handleNumberInput(0)}
-          title="Erase"
-        >
-          <i className="fa-solid fa-eraser"></i>
-        </button>
-        <button
-          className="icon-btn"
-          onClick={fillAutoNotes}
-          title="Auto-fill candidates"
-        >
-          <i className="fa-solid fa-wand-magic-sparkles"></i>
-        </button>
-        <button
-          className={`icon-btn with-text ${isNotesMode ? 'active' : ''}`}
-          onClick={() => setIsNotesMode(!isNotesMode)}
-        >
-          <i className="fa-solid fa-pencil"></i>
-          <span>{isNotesMode ? 'ON' : 'OFF'}</span>
-        </button>
-        <button
-          className="icon-btn"
-          onClick={() => setShowNewGameMenu(!showNewGameMenu)}
-          title="New Game"
-        >
-          <i className="fa-solid fa-plus"></i>
-        </button>
-      </div>
+      {!isCustomEntryMode && (
+        <div className="controls">
+          <button
+            className="icon-btn"
+            onClick={handleUndo}
+            disabled={history.length === 0}
+            title="Undo"
+          >
+            <i className="fa-solid fa-rotate-left"></i>
+          </button>
+          <button
+            className="icon-btn"
+            onClick={() => handleNumberInput(0)}
+            title="Erase"
+          >
+            <i className="fa-solid fa-eraser"></i>
+          </button>
+          <button
+            className="icon-btn"
+            onClick={fillAutoNotes}
+            title="Auto-fill candidates"
+          >
+            <i className="fa-solid fa-wand-magic-sparkles"></i>
+          </button>
+          <button
+            className={`icon-btn with-text ${isNotesMode ? 'active' : ''}`}
+            onClick={() => setIsNotesMode(!isNotesMode)}
+          >
+            <i className="fa-solid fa-pencil"></i>
+            <span>{isNotesMode ? 'ON' : 'OFF'}</span>
+          </button>
+        </div>
+      )}
 
-      {showNewGameMenu && (
-        <div className="new-game-menu">
-          <button onClick={() => startNewGame('easy')}>Easy</button>
-          <button onClick={() => startNewGame('medium')}>Medium</button>
-          <button onClick={() => startNewGame('hard')}>Hard</button>
+      
+      {isCustomEntryMode && (
+        <div className="custom-entry-controls">
+          <button onClick={confirmCustomPuzzle} className="confirm-btn">
+            <i className="fa-solid fa-check"></i> Start Playing
+          </button>
+          <button onClick={cancelCustomEntry} className="cancel-btn">
+            <i className="fa-solid fa-xmark"></i> Cancel
+          </button>
         </div>
       )}
 
@@ -788,7 +948,7 @@ function App() {
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
           <button
             key={num}
-            className={`number-btn ${highlightedNumber === num ? 'active' : ''}`}
+            className={`number-btn ${!isCustomEntryMode && highlightedNumber === num ? 'active' : ''}`}
             onClick={() => handleNumberPadClick(num)}
           >
             {num}
