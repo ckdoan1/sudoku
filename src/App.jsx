@@ -367,6 +367,7 @@ function App() {
   const [showNewGameMenu, setShowNewGameMenu] = useState(false)
   const [conflictCells, setConflictCells] = useState([])
   const [gameMode, setGameMode] = useState('medium')
+  const [showWinModal, setShowWinModal] = useState(false)
   const [isCustomEntryMode, setIsCustomEntryMode] = useState(false)
   const [customBoard, setCustomBoard] = useState(() => 
     Array(9).fill(null).map(() => Array(9).fill(0))
@@ -488,6 +489,7 @@ function App() {
     setHighlightedCell(null)
     setShowNewGameMenu(false)
     setGameMode(difficulty)
+    setShowWinModal(false)
   }
 
   // Reset board to initial puzzle state
@@ -638,6 +640,52 @@ function App() {
     setAutoNotes(newAutoNotes)
   }
 
+  // Check if the puzzle is solved correctly
+  const checkWin = (currentBoard) => {
+    // Check if all cells are filled
+    for (let row = 0; row < 9; row++) {
+      for (let col = 0; col < 9; col++) {
+        if (currentBoard[row][col] === 0) return false
+      }
+    }
+    
+    // Check rows
+    for (let row = 0; row < 9; row++) {
+      const seen = new Set()
+      for (let col = 0; col < 9; col++) {
+        const num = currentBoard[row][col]
+        if (seen.has(num)) return false
+        seen.add(num)
+      }
+    }
+    
+    // Check columns
+    for (let col = 0; col < 9; col++) {
+      const seen = new Set()
+      for (let row = 0; row < 9; row++) {
+        const num = currentBoard[row][col]
+        if (seen.has(num)) return false
+        seen.add(num)
+      }
+    }
+    
+    // Check 3x3 blocks
+    for (let blockRow = 0; blockRow < 3; blockRow++) {
+      for (let blockCol = 0; blockCol < 3; blockCol++) {
+        const seen = new Set()
+        for (let r = 0; r < 3; r++) {
+          for (let c = 0; c < 3; c++) {
+            const num = currentBoard[blockRow * 3 + r][blockCol * 3 + c]
+            if (seen.has(num)) return false
+            seen.add(num)
+          }
+        }
+      }
+    }
+    
+    return true
+  }
+
   const isInHighlightedRegion = (row, col) => {
     if (!highlightedCell) return false
     const sameRow = row === highlightedCell.row
@@ -660,14 +708,17 @@ function App() {
       if (highlightedNumber === cellValue && highlightedCell?.row === row && highlightedCell?.col === col) {
         setHighlightedNumber(null)
         setHighlightedCell(null)
+        setSelectedCell(null)
       } else {
         setHighlightedNumber(cellValue)
         setHighlightedCell({ row, col })
+        setSelectedCell(null)
       }
       return
     }
+    // Empty cell - highlight region but no number
     setHighlightedNumber(null)
-    setHighlightedCell(null)
+    setHighlightedCell({ row, col })
     if (puzzle[row][col] === 0) {
       setSelectedCell({ row, col })
     }
@@ -765,6 +816,12 @@ function App() {
         )
       )
       setBoard(newBoard)
+      
+      // Check for win
+      if (num !== 0 && checkWin(newBoard)) {
+        setTimeout(() => setShowWinModal(true), 300)
+      }
+      
       if (num !== 0) {
         // Clear notes for this cell and remove from related cells
         const removeNoteFromRelatedCells = (notesGrid) => {
@@ -842,6 +899,25 @@ function App() {
     return notes[row][col].size > 0 || autoNotes[row][col].size > 0
   }
 
+  // Count how many times each number appears on the board
+  const getNumberCounts = () => {
+    const counts = {}
+    for (let num = 1; num <= 9; num++) {
+      counts[num] = 0
+    }
+    for (let row = 0; row < 9; row++) {
+      for (let col = 0; col < 9; col++) {
+        const num = board[row][col]
+        if (num !== 0) {
+          counts[num]++
+        }
+      }
+    }
+    return counts
+  }
+
+  const numberCounts = getNumberCounts()
+
   return (
     <div className="container">
       <h1 className="title">{isCustomEntryMode ? 'Enter Your Puzzle' : 'Sudoku'}</h1>
@@ -887,6 +963,7 @@ function App() {
                 className={`cell
                   ${isCustomEntryMode ? 'custom-entry' : (isInitialCell(rowIndex, colIndex) ? 'initial' : 'editable')}
                   ${selectedCell?.row === rowIndex && selectedCell?.col === colIndex ? 'selected' : ''}
+                  ${!isCustomEntryMode && highlightedCell?.row === rowIndex && highlightedCell?.col === colIndex ? 'clicked-cell' : ''}
                   ${colIndex % 3 === 2 && colIndex !== 8 ? 'border-right' : ''}
                   ${rowIndex % 3 === 2 && rowIndex !== 8 ? 'border-bottom' : ''}
                   ${!isCustomEntryMode && cellHasNotes(rowIndex, colIndex) && cell === 0 ? 'has-notes' : ''}
@@ -950,16 +1027,39 @@ function App() {
       )}
 
       <div className="number-pad">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-          <button
-            key={num}
-            className={`number-btn ${!isCustomEntryMode && highlightedNumber === num ? 'active' : ''}`}
-            onClick={() => handleNumberPadClick(num)}
-          >
-            {num}
-          </button>
-        ))}
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
+          const isComplete = !isCustomEntryMode && numberCounts[num] >= 9
+          return (
+            <button
+              key={num}
+              className={`number-btn ${!isCustomEntryMode && highlightedNumber === num ? 'active' : ''} ${isComplete ? 'complete' : ''}`}
+              onClick={() => handleNumberPadClick(num)}
+              disabled={isComplete}
+            >
+              {num}
+            </button>
+          )
+        })}
       </div>
+
+      {showWinModal && (
+        <div className="win-modal-overlay" onClick={() => setShowWinModal(false)}>
+          <div className="win-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="win-icon">🎉</div>
+            <h2>Congratulations!</h2>
+            <p>You solved the puzzle!</p>
+            <button 
+              className="win-btn"
+              onClick={() => {
+                setShowWinModal(false)
+                setShowNewGameMenu(true)
+              }}
+            >
+              New Game
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

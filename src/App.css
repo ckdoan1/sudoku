@@ -191,7 +191,7 @@ html, body {
 
 .cell.initial {
   color: #1f2937;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -200,12 +200,13 @@ html, body {
   font-weight: 500;
 }
 
-.cell.editable:hover {
-  background: rgba(102, 126, 234, 0.2);
-}
 
 .cell.selected {
-  background: rgba(118, 75, 162, 0.4);
+  background: rgba(102, 126, 234, 0.5);
+}
+
+.cell.clicked-cell {
+  background: rgba(59, 130, 246, 0.4);
 }
 
 .cell.has-notes {
@@ -328,6 +329,11 @@ html, body {
 
 .number-btn.active {
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.number-btn.complete {
+  visibility: hidden;
+  pointer-events: none;
   color: white;
 }
 
@@ -443,6 +449,80 @@ html, body {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
+/* Win Modal */
+.win-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.win-modal {
+  background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+  padding: 2.5rem;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  animation: scaleIn 0.3s ease;
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.win-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.win-modal h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 0.5rem 0;
+}
+
+.win-modal p {
+  color: #a0a0b0;
+  font-size: 1.1rem;
+  margin: 0 0 1.5rem 0;
+}
+
+.win-btn {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.win-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+}
+
 /* Mobile Responsive */
 @media (max-width: 480px) {
   .container {
@@ -554,10 +634,6 @@ html, body {
 
 /* Touch devices - disable hover effects */
 @media (hover: none) {
-  .cell.editable:hover {
-    background: rgba(255, 255, 255, 0.05);
-  }
-
   .icon-btn:hover:not(:disabled) {
     transform: none;
   }
@@ -697,10 +773,6 @@ html, body {
     color: #2563eb;
   }
 
-  .cell.editable:hover {
-    background: rgba(102, 126, 234, 0.15);
-  }
-
   .icon-btn {
     color: #6b7280;
   }
@@ -746,6 +818,10 @@ html, body {
 
   .cell.region-highlighted.cell-highlighted {
     background: rgba(37, 99, 235, 0.2);
+  }
+
+  .cell.clicked-cell {
+    background: rgba(37, 99, 235, 0.35);
   }
 
   .new-game-dropdown {
