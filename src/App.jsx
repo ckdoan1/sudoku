@@ -586,8 +586,13 @@ function App() {
         if (e.key === 'ArrowDown' && row < 8) row++
         if (e.key === 'ArrowLeft' && col > 0) col--
         if (e.key === 'ArrowRight' && col < 8) col++
-        if (puzzle[row][col] === 0) {
-          setSelectedCell({ row, col })
+        setSelectedCell({ row, col })
+        // If navigating to an initial cell, highlight that number
+        const cellValue = board[row][col]
+        if (cellValue !== 0) {
+          setHighlightedNumber(cellValue)
+          setHighlightedCell({ row, col })
+        } else {
           setHighlightedNumber(null)
           setHighlightedCell(null)
         }

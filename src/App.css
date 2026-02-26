@@ -168,6 +168,7 @@ html, body {
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+  background: white;
 }
 
 .row {
@@ -180,23 +181,23 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 2rem;
   font-weight: 600;
   border: 1px solid rgba(102, 126, 234, 0.3);
   cursor: pointer;
   transition: all 0.15s ease;
-  background: rgba(255, 255, 255, 0.05);
+  background: white;
 }
 
 .cell.initial {
-  color: #e0e0e0;
+  color: #1f2937;
   font-weight: 700;
   cursor: pointer;
 }
 
 .cell.editable {
-  color: #60a5fa;
-  font-weight: 400;
+  color: #2563eb;
+  font-weight: 500;
 }
 
 .cell.editable:hover {
@@ -271,7 +272,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #f472b6;
   line-height: 1;
@@ -282,7 +283,7 @@ html, body {
   color: #4b5563;
   font-weight: 600;
   font-style: italic;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
 }
 
 .note-number.highlighted {
@@ -483,15 +484,15 @@ html, body {
     height: calc((100vw - 1rem - 10px) / 9);
     max-width: 38px;
     max-height: 38px;
-    font-size: 1.1rem;
+    font-size: 1.4rem;
   }
 
   .note-number {
-    font-size: 0.4rem;
+    font-size: 0.5rem;
   }
 
   .note-number.auto {
-    font-size: 0.4rem;
+    font-size: 0.5rem;
   }
 
   .controls {
@@ -604,12 +605,12 @@ html, body {
   .cell {
     width: calc((100vw - 0.5rem - 10px) / 9);
     height: calc((100vw - 0.5rem - 10px) / 9);
-    font-size: 0.95rem;
+    font-size: 1.2rem;
   }
 
   .note-number,
   .note-number.auto {
-    font-size: 0.35rem;
+    font-size: 0.45rem;
   }
 
   .number-pad {
@@ -667,12 +668,12 @@ html, body {
   .cell {
     width: 45px;
     height: 45px;
-    font-size: 1.35rem;
+    font-size: 1.75rem;
   }
 
   .note-number,
   .note-number.auto {
-    font-size: 0.55rem;
+    font-size: 0.65rem;
   }
 
   .number-btn {
