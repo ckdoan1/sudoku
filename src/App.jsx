@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 
 // Initial puzzle (0 represents empty cells)
@@ -29,6 +29,53 @@ function App() {
   const [history, setHistory] = useState([])
   const [highlightedNumber, setHighlightedNumber] = useState(null)
   const [highlightedCell, setHighlightedCell] = useState(null)
+
+  // Handle keyboard input
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Number keys 1-9
+      if (e.key >= '1' && e.key <= '9') {
+        const num = parseInt(e.key)
+        if (selectedCell) {
+          handleNumberInput(num)
+        }
+        // Only highlight if not in notes mode
+        if (!isNotesMode) {
+          if (highlightedNumber === num) {
+            setHighlightedNumber(null)
+            setHighlightedCell(null)
+          } else {
+            setHighlightedNumber(num)
+            setHighlightedCell(null)
+          }
+        }
+      }
+      // Backspace, Delete, or 0 to clear
+      if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') {
+        if (selectedCell) {
+          handleNumberInput(0)
+        }
+      }
+      // Arrow keys for navigation
+      if (selectedCell && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault()
+        let { row, col } = selectedCell
+        if (e.key === 'ArrowUp' && row > 0) row--
+        if (e.key === 'ArrowDown' && row < 8) row++
+        if (e.key === 'ArrowLeft' && col > 0) col--
+        if (e.key === 'ArrowRight' && col < 8) col++
+        // Only select if it's an editable cell
+        if (initialPuzzle[row][col] === 0) {
+          setSelectedCell({ row, col })
+          setHighlightedNumber(null)
+          setHighlightedCell(null)
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedCell, highlightedNumber, isNotesMode])
 
   // Get valid candidates for a cell based on Sudoku rules
   const getValidCandidates = (currentBoard, row, col) => {
@@ -112,17 +159,6 @@ function App() {
     }
   }
 
-  const handleNoteClick = (num, row, col, e) => {
-    e.stopPropagation()
-    if (highlightedNumber === num && highlightedCell?.row === row && highlightedCell?.col === col) {
-      setHighlightedNumber(null)
-      setHighlightedCell(null)
-    } else {
-      setHighlightedNumber(num)
-      setHighlightedCell({ row, col })
-    }
-  }
-
   const saveToHistory = () => {
     setHistory(prev => [...prev, {
       board: board.map(row => [...row]),
@@ -141,6 +177,21 @@ function App() {
     setHistory(prev => prev.slice(0, -1))
   }
 
+  const handleNumberPadClick = (num) => {
+    // Toggle highlight for this number (only if not in notes mode)
+    if (num !== 0 && !isNotesMode) {
+      if (highlightedNumber === num) {
+        setHighlightedNumber(null)
+        setHighlightedCell(null)
+      } else {
+        setHighlightedNumber(num)
+        setHighlightedCell(null)
+      }
+    }
+    // Also input the number if a cell is selected
+    handleNumberInput(num)
+  }
+
   const handleNumberInput = (num) => {
     if (!selectedCell) return
     const { row, col } = selectedCell
@@ -148,22 +199,36 @@ function App() {
     saveToHistory()
 
     if (isNotesMode && num !== 0) {
-      // Toggle note for this number (affects both manual notes and removes from auto)
-      setNotes(prev => {
-        const newNotes = prev.map(r => r.map(c => new Set(c)))
-        if (newNotes[row][col].has(num)) {
-          newNotes[row][col].delete(num)
-        } else {
-          newNotes[row][col].add(num)
+      const hasManualNote = notes[row][col].has(num)
+      const hasAutoNote = autoNotes[row][col].has(num)
+
+      if (hasAutoNote && !hasManualNote) {
+        // If it's only in auto notes, just remove from auto notes
+        setAutoNotes(prev => {
+          const newAutoNotes = prev.map(r => r.map(c => new Set(c)))
+          newAutoNotes[row][col].delete(num)
+          return newAutoNotes
+        })
+      } else {
+        // Toggle manual notes
+        setNotes(prev => {
+          const newNotes = prev.map(r => r.map(c => new Set(c)))
+          if (newNotes[row][col].has(num)) {
+            newNotes[row][col].delete(num)
+          } else {
+            newNotes[row][col].add(num)
+          }
+          return newNotes
+        })
+        // Also remove from auto notes if adding manually
+        if (!hasManualNote) {
+          setAutoNotes(prev => {
+            const newAutoNotes = prev.map(r => r.map(c => new Set(c)))
+            newAutoNotes[row][col].delete(num)
+            return newAutoNotes
+          })
         }
-        return newNotes
-      })
-      // Remove from auto notes if toggling manually
-      setAutoNotes(prev => {
-        const newAutoNotes = prev.map(r => r.map(c => new Set(c)))
-        newAutoNotes[row][col].delete(num)
-        return newAutoNotes
-      })
+      }
     } else {
       // Normal mode: set the cell value
       const newBoard = board.map((r, rowIndex) =>
@@ -217,8 +282,6 @@ function App() {
               <span
                 key={num}
                 className={`note-number ${isAutoNote ? 'auto' : ''} ${isHighlighted ? 'highlighted' : ''}`}
-                onClick={hasNote ? (e) => handleNoteClick(num, row, col, e) : undefined}
-                style={hasNote ? { cursor: 'pointer' } : {}}
               >
                 {hasNote ? num : ''}
               </span>
@@ -253,7 +316,6 @@ function App() {
                   ${rowIndex % 3 === 2 && rowIndex !== 8 ? 'border-bottom' : ''}
                   ${cellHasNotes(rowIndex, colIndex) && cell === 0 ? 'has-notes' : ''}
                   ${cell !== 0 && highlightedNumber === cell ? 'cell-highlighted' : ''}
-                  ${cell === 0 && (notes[rowIndex][colIndex].has(highlightedNumber) || autoNotes[rowIndex][colIndex].has(highlightedNumber)) ? 'has-highlighted-note' : ''}
                   ${isInHighlightedRegion(rowIndex, colIndex) ? 'region-highlighted' : ''}
                 `}
                 onClick={(e) => handleCellClick(rowIndex, colIndex, e)}
@@ -282,18 +344,18 @@ function App() {
           <i className="fa-solid fa-eraser"></i>
         </button>
         <button
-          className={`icon-btn with-text ${isNotesMode ? 'active' : ''}`}
-          onClick={() => setIsNotesMode(!isNotesMode)}
-        >
-          <i className="fa-solid fa-pencil"></i>
-          <span>{isNotesMode ? 'ON' : 'OFF'}</span>
-        </button>
-        <button
           className="icon-btn"
           onClick={fillAutoNotes}
           title="Auto-fill candidates"
         >
           <i className="fa-solid fa-wand-magic-sparkles"></i>
+        </button>
+        <button
+          className={`icon-btn with-text ${isNotesMode ? 'active' : ''}`}
+          onClick={() => setIsNotesMode(!isNotesMode)}
+        >
+          <i className="fa-solid fa-pencil"></i>
+          <span>{isNotesMode ? 'ON' : 'OFF'}</span>
         </button>
       </div>
 
@@ -302,7 +364,7 @@ function App() {
           <button
             key={num}
             className={`number-btn ${highlightedNumber === num ? 'active' : ''}`}
-            onClick={() => handleNumberInput(num)}
+            onClick={() => handleNumberPadClick(num)}
           >
             {num}
           </button>

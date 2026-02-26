@@ -45,7 +45,7 @@
 }
 
 .icon-btn.active {
-  color: #facc15;
+  color: #3b82f6;
 }
 
 .icon-btn:disabled {
@@ -120,29 +120,21 @@
 
 /* Highlighted cells */
 .cell.cell-highlighted {
-  background: rgba(250, 204, 21, 0.25);
-}
-
-.cell.has-highlighted-note {
-  background: rgba(250, 204, 21, 0.15);
+  background: rgba(59, 130, 246, 0.3);
 }
 
 .highlighted-number {
-  color: #facc15;
-  text-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
+  color: #3b82f6;
+  text-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
 }
 
 /* Row/Column/Block highlight */
 .cell.region-highlighted {
-  background: rgba(250, 204, 21, 0.1);
+  background: rgba(59, 130, 246, 0.15);
 }
 
 .cell.region-highlighted.cell-highlighted {
-  background: rgba(250, 204, 21, 0.25);
-}
-
-.cell.region-highlighted.has-highlighted-note {
-  background: rgba(250, 204, 21, 0.15);
+  background: rgba(59, 130, 246, 0.3);
 }
 
 /* 3x3 box borders */
@@ -161,31 +153,36 @@
   grid-template-rows: repeat(3, 1fr);
   width: 100%;
   height: 100%;
-  gap: 0;
+  gap: 1px;
 }
 
 .note-number {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.6rem;
-  font-weight: 500;
-  color: #9ca3af;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #f472b6;
   line-height: 1;
+  border-radius: 2px;
 }
 
 .note-number.auto {
-  color: #22d3ee;
+  color: #4b5563;
+  font-weight: 600;
+  font-style: italic;
+  font-size: 0.65rem;
 }
 
 .note-number.highlighted {
-  color: #facc15;
+  background: #3b82f6;
+  color: white;
   font-weight: 700;
-  text-shadow: 0 0 4px rgba(250, 204, 21, 0.6);
 }
 
 .note-number.auto.highlighted {
-  color: #facc15;
+  background: #3b82f6;
+  color: white;
 }
 
 /* Number Pad */
@@ -218,8 +215,8 @@
 }
 
 .number-btn.active {
-  background: linear-gradient(135deg, #facc15 0%, #eab308 100%);
-  color: #1a1a1a;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
 }
 
 /* Light mode adjustments */
@@ -249,44 +246,41 @@
   }
 
   .icon-btn.active {
-    color: #d97706;
+    color: #2563eb;
   }
 
   .note-number {
-    color: #6b7280;
+    color: #db2777;
   }
 
   .note-number.auto {
-    color: #0891b2;
+    color: #6b7280;
   }
 
   .highlighted-number {
-    color: #d97706;
+    color: #2563eb;
     text-shadow: none;
   }
 
   .note-number.highlighted {
-    color: #d97706;
-    text-shadow: none;
+    background: #2563eb;
+    color: white;
+  }
+
+  .note-number.auto.highlighted {
+    background: #2563eb;
+    color: white;
   }
 
   .cell.cell-highlighted {
-    background: rgba(217, 119, 6, 0.2);
-  }
-
-  .cell.has-highlighted-note {
-    background: rgba(217, 119, 6, 0.1);
+    background: rgba(37, 99, 235, 0.2);
   }
 
   .cell.region-highlighted {
-    background: rgba(217, 119, 6, 0.08);
+    background: rgba(37, 99, 235, 0.1);
   }
 
   .cell.region-highlighted.cell-highlighted {
-    background: rgba(217, 119, 6, 0.2);
-  }
-
-  .cell.region-highlighted.has-highlighted-note {
-    background: rgba(217, 119, 6, 0.1);
+    background: rgba(37, 99, 235, 0.2);
   }
 }
