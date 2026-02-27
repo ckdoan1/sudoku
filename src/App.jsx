@@ -391,6 +391,7 @@ function App() {
   const [conflictCells, setConflictCells] = useState([])
   const [gameMode, setGameMode] = useState(savedGame?.gameMode || 'medium')
   const [showWinModal, setShowWinModal] = useState(false)
+  const [solution, setSolution] = useState(() => solve(savedGame?.puzzle || defaultPuzzle))
   const [isCustomEntryMode, setIsCustomEntryMode] = useState(false)
   const [customBoard, setCustomBoard] = useState(() => 
     Array(9).fill(null).map(() => Array(9).fill(0))
@@ -473,6 +474,13 @@ function App() {
     }
     
     const newPuzzle = customBoard.map(row => [...row])
+    const puzzleSolution = solve(newPuzzle)
+    
+    if (!puzzleSolution) {
+      alert('This puzzle has no valid solution. Please check your entries.')
+      return
+    }
+    
     setPuzzle(newPuzzle)
     setBoard(copyBoard(newPuzzle))
     setNotes(createEmptyNotes())
@@ -483,6 +491,7 @@ function App() {
     setHighlightedCell(null)
     setIsCustomEntryMode(false)
     setGameMode('custom')
+    setSolution(puzzleSolution)
   }
 
   // Cancel custom entry
@@ -525,6 +534,7 @@ function App() {
     setShowNewGameMenu(false)
     setGameMode(difficulty)
     setShowWinModal(false)
+    setSolution(solve(newPuzzle))
   }
 
   // Reset board to initial puzzle state
@@ -776,6 +786,70 @@ function App() {
     setHistory(prev => prev.slice(0, -1))
   }
 
+  const handleHint = () => {
+    if (!solution) return
+    
+    let targetRow, targetCol
+    
+    // If a cell is selected and it's empty, use that cell
+    if (selectedCell && puzzle[selectedCell.row][selectedCell.col] === 0 && board[selectedCell.row][selectedCell.col] === 0) {
+      targetRow = selectedCell.row
+      targetCol = selectedCell.col
+    } else {
+      // Find all empty cells
+      const emptyCells = []
+      for (let r = 0; r < 9; r++) {
+        for (let c = 0; c < 9; c++) {
+          if (puzzle[r][c] === 0 && board[r][c] === 0) {
+            emptyCells.push([r, c])
+          }
+        }
+      }
+      
+      if (emptyCells.length === 0) return
+      
+      // Pick a random empty cell
+      const randomIndex = Math.floor(Math.random() * emptyCells.length)
+      ;[targetRow, targetCol] = emptyCells[randomIndex]
+    }
+    
+    saveToHistory()
+    
+    const correctNum = solution[targetRow][targetCol]
+    const newBoard = board.map((r, rowIndex) =>
+      r.map((cell, colIndex) =>
+        rowIndex === targetRow && colIndex === targetCol ? correctNum : cell
+      )
+    )
+    setBoard(newBoard)
+    setSelectedCell({ row: targetRow, col: targetCol })
+    setHighlightedNumber(correctNum)
+    setHighlightedCell({ row: targetRow, col: targetCol })
+    
+    // Clear notes for the hint cell and related cells
+    const removeNoteFromRelatedCells = (notesGrid) => {
+      const newNotes = notesGrid.map(r => r.map(c => new Set(c)))
+      newNotes[targetRow][targetCol].clear()
+      for (let c = 0; c < 9; c++) newNotes[targetRow][c].delete(correctNum)
+      for (let r = 0; r < 9; r++) newNotes[r][targetCol].delete(correctNum)
+      const blockRowStart = Math.floor(targetRow / 3) * 3
+      const blockColStart = Math.floor(targetCol / 3) * 3
+      for (let r = blockRowStart; r < blockRowStart + 3; r++) {
+        for (let c = blockColStart; c < blockColStart + 3; c++) {
+          newNotes[r][c].delete(correctNum)
+        }
+      }
+      return newNotes
+    }
+    setNotes(removeNoteFromRelatedCells(notes))
+    setAutoNotes(removeNoteFromRelatedCells(autoNotes))
+    
+    // Check for win
+    if (checkWin(newBoard)) {
+      setTimeout(() => setShowWinModal(true), 300)
+    }
+  }
+
   const handleNumberPadClick = (num) => {
     // Custom entry mode
     if (isCustomEntryMode) {
@@ -846,6 +920,12 @@ function App() {
         const conflicts = findConflicts(board, row, col, num)
         if (conflicts.length > 0) {
           flashConflicts(conflicts, true, row, col)
+        }
+        
+        // Check if the number matches the solution
+        if (solution && solution[row][col] !== num) {
+          flashConflicts([[row, col]], true, row, col)
+          return
         }
       }
       
@@ -966,7 +1046,7 @@ function App() {
             <button
               className="header-btn"
               onClick={() => setShowNewGameMenu(!showNewGameMenu)}
-              title="New Game"
+              data-tooltip="New Game"
             >
               <i className="fa-solid fa-plus"></i> NEW
             </button>
@@ -986,7 +1066,7 @@ function App() {
           <button
             className="header-btn"
             onClick={resetBoard}
-            title="Reset Board"
+            data-tooltip="Reset Board"
           >
             <i className="fa-solid fa-rotate-right"></i> RESET
           </button>
@@ -1025,34 +1105,42 @@ function App() {
             className="icon-btn"
             onClick={handleUndo}
             disabled={history.length === 0}
-            title="Undo"
+            data-tooltip="Undo"
           >
             <i className="fa-solid fa-rotate-left"></i>
           </button>
           <button
             className="icon-btn"
             onClick={() => handleNumberInput(0)}
-            title="Erase"
+            data-tooltip="Erase"
           >
             <i className="fa-solid fa-eraser"></i>
           </button>
           <button
             className="icon-btn"
+            onClick={handleHint}
+            data-tooltip="Hint"
+          >
+            <i className="fa-solid fa-lightbulb"></i>
+          </button>
+          <button
+            className="icon-btn"
             onClick={fillAutoNotes}
-            title="Auto-fill candidates"
+            data-tooltip="Auto Notes"
           >
             <i className="fa-solid fa-wand-magic-sparkles"></i>
           </button>
           <button
             className={`icon-btn ${unifyNoteColors ? 'active' : ''}`}
             onClick={() => setUnifyNoteColors(!unifyNoteColors)}
-            title="Unify note colors"
+            data-tooltip="Unify Colors"
           >
             <i className="fa-solid fa-palette"></i>
           </button>
           <button
             className={`icon-btn with-text ${isNotesMode ? 'active' : ''}`}
             onClick={() => setIsNotesMode(!isNotesMode)}
+            data-tooltip="Notes Mode"
           >
             <i className="fa-solid fa-pencil"></i>
             <span>{isNotesMode ? 'ON' : 'OFF'}</span>
@@ -1063,10 +1151,10 @@ function App() {
       
       {isCustomEntryMode && (
         <div className="custom-entry-controls">
-          <button onClick={confirmCustomPuzzle} className="confirm-btn">
+          <button onClick={confirmCustomPuzzle} className="confirm-btn" data-tooltip="Confirm and start playing">
             <i className="fa-solid fa-check"></i> Start Playing
           </button>
-          <button onClick={cancelCustomEntry} className="cancel-btn">
+          <button onClick={cancelCustomEntry} className="cancel-btn" data-tooltip="Cancel custom entry">
             <i className="fa-solid fa-xmark"></i> Cancel
           </button>
         </div>
