@@ -1131,19 +1131,19 @@ function App() {
             <i className="fa-solid fa-wand-magic-sparkles"></i>
           </button>
           <button
-            className={`icon-btn ${unifyNoteColors ? 'active' : ''}`}
-            onClick={() => setUnifyNoteColors(!unifyNoteColors)}
-            data-tooltip="Unify Colors"
-          >
-            <i className="fa-solid fa-palette"></i>
-          </button>
-          <button
             className={`icon-btn with-text ${isNotesMode ? 'active' : ''}`}
             onClick={() => setIsNotesMode(!isNotesMode)}
             data-tooltip="Notes Mode"
           >
             <i className="fa-solid fa-pencil"></i>
             <span>{isNotesMode ? 'ON' : 'OFF'}</span>
+          </button>
+          <button
+            className={`icon-btn ${unifyNoteColors ? 'active' : ''}`}
+            onClick={() => setUnifyNoteColors(!unifyNoteColors)}
+            data-tooltip="Unify Colors"
+          >
+            <i className="fa-solid fa-palette"></i>
           </button>
         </div>
       )}
