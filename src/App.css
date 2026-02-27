@@ -183,6 +183,7 @@ html, body {
   justify-content: center;
   font-size: 2.5rem;
   font-weight: 500;
+  line-height: 1;
   border: 1px solid rgba(102, 126, 234, 0.3);
   cursor: pointer;
   transition: all 0.15s ease;
@@ -562,7 +563,7 @@ html, body {
     height: calc((100vw - 1rem - 10px) / 9);
     max-width: 40px;
     max-height: 40px;
-    font-size: 1.8rem;
+    font-size: 2.7rem;
   }
 
   .note-number {
@@ -675,7 +676,7 @@ html, body {
   .cell {
     width: calc((100vw - 0.5rem - 10px) / 9);
     height: calc((100vw - 0.5rem - 10px) / 9);
-    font-size: 1.5rem;
+    font-size: 2.1rem;
   }
 
   .note-number {
@@ -737,7 +738,7 @@ html, body {
   .cell {
     width: 47px;
     height: 47px;
-    font-size: 2.25rem;
+    font-size: 3.2rem;
   }
 
   .note-number {
