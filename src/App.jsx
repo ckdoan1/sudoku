@@ -354,11 +354,33 @@ const createEmptyNotes = () =>
 // Default starting puzzle
 const defaultPuzzle = generatePuzzle('medium')
 
+// Helper to load saved game from localStorage
+const loadSavedGame = () => {
+  try {
+    const saved = localStorage.getItem('ckdoan1-sudoku-game-state')
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      return {
+        puzzle: parsed.puzzle,
+        board: parsed.board,
+        notes: parsed.notes.map(row => row.map(cell => new Set(cell))),
+        autoNotes: parsed.autoNotes.map(row => row.map(cell => new Set(cell))),
+        gameMode: parsed.gameMode
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load saved game:', e)
+  }
+  return null
+}
+
 function App() {
-  const [puzzle, setPuzzle] = useState(defaultPuzzle)
-  const [board, setBoard] = useState(defaultPuzzle)
-  const [notes, setNotes] = useState(createEmptyNotes)
-  const [autoNotes, setAutoNotes] = useState(createEmptyNotes)
+  const savedGame = loadSavedGame()
+  
+  const [puzzle, setPuzzle] = useState(savedGame?.puzzle || defaultPuzzle)
+  const [board, setBoard] = useState(savedGame?.board || defaultPuzzle)
+  const [notes, setNotes] = useState(savedGame?.notes || createEmptyNotes)
+  const [autoNotes, setAutoNotes] = useState(savedGame?.autoNotes || createEmptyNotes)
   const [selectedCell, setSelectedCell] = useState(null)
   const [isNotesMode, setIsNotesMode] = useState(false)
   const [unifyNoteColors, setUnifyNoteColors] = useState(false)
@@ -367,12 +389,24 @@ function App() {
   const [highlightedCell, setHighlightedCell] = useState(null)
   const [showNewGameMenu, setShowNewGameMenu] = useState(false)
   const [conflictCells, setConflictCells] = useState([])
-  const [gameMode, setGameMode] = useState('medium')
+  const [gameMode, setGameMode] = useState(savedGame?.gameMode || 'medium')
   const [showWinModal, setShowWinModal] = useState(false)
   const [isCustomEntryMode, setIsCustomEntryMode] = useState(false)
   const [customBoard, setCustomBoard] = useState(() => 
     Array(9).fill(null).map(() => Array(9).fill(0))
   )
+
+  // Save game to localStorage whenever state changes
+  useEffect(() => {
+    const gameState = {
+      puzzle,
+      board,
+      notes: notes.map(row => row.map(cell => [...cell])),
+      autoNotes: autoNotes.map(row => row.map(cell => [...cell])),
+      gameMode
+    }
+    localStorage.setItem('ckdoan1-sudoku-game-state', JSON.stringify(gameState))
+  }, [puzzle, board, notes, autoNotes, gameMode])
 
   // Check if placing a number creates a conflict
   const findConflicts = (currentBoard, row, col, num) => {
