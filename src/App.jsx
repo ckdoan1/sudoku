@@ -361,6 +361,7 @@ function App() {
   const [autoNotes, setAutoNotes] = useState(createEmptyNotes)
   const [selectedCell, setSelectedCell] = useState(null)
   const [isNotesMode, setIsNotesMode] = useState(false)
+  const [unifyNoteColors, setUnifyNoteColors] = useState(false)
   const [history, setHistory] = useState([])
   const [highlightedNumber, setHighlightedNumber] = useState(null)
   const [highlightedCell, setHighlightedCell] = useState(null)
@@ -887,7 +888,7 @@ function App() {
             return (
               <span
                 key={num}
-                className={`note-number ${isAutoNote ? 'auto' : ''} ${isHighlighted ? 'highlighted' : ''}`}
+                className={`note-number ${(isAutoNote || unifyNoteColors) ? 'auto' : ''} ${isHighlighted ? 'highlighted' : ''}`}
               >
                 {hasNote ? num : ''}
               </span>
@@ -1007,6 +1008,13 @@ function App() {
             title="Auto-fill candidates"
           >
             <i className="fa-solid fa-wand-magic-sparkles"></i>
+          </button>
+          <button
+            className={`icon-btn ${unifyNoteColors ? 'active' : ''}`}
+            onClick={() => setUnifyNoteColors(!unifyNoteColors)}
+            title="Unify note colors"
+          >
+            <i className="fa-solid fa-palette"></i>
           </button>
           <button
             className={`icon-btn with-text ${isNotesMode ? 'active' : ''}`}
